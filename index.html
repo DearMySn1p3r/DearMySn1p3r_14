@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamagotchi Maker</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hi+Melody&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.3.0/dist/dom-to-image-more.min.js"></script>
+    
+    <style>
+        :root {
+            /* 🍓🍑 기본 테마: 딸기 복숭아 */
+            --bg-canvas: #ffe4e8; 
+            --shell-color: #ff8fab; 
+            --shell-light: #ffc2d1; 
+            --shell-shadow: #fb6f92; 
+            --bezel-color: #ffffff;
+            --lcd-bg: #b6d7a8; 
+            --lcd-border: #93c47d;
+            --pixel-color: #2b3a21;
+            /* 귀여운 폰트 적용 */
+            --font-main: 'Hi Melody', cursive;
+        }
+
+        /* 🌈 다양한 색상 테마들 */
+        body.theme-white { --bg-canvas: #f5f5f5; --shell-color: #ffffff; --shell-light: #ffffff; --shell-shadow: #d1d1d1; }
+        body.theme-black { --bg-canvas: #333333; --shell-color: #1a1a1a; --shell-light: #444444; --shell-shadow: #000000; --bezel-color: #333; }
+        body.theme-blue { --bg-canvas: #e0f2fe; --shell-color: #7dd3fc; --shell-shadow: #38bdf8; --shell-light: #bae6fd; }
+        body.theme-mint { --bg-canvas: #dcfce7; --shell-color: #6ee7b7; --shell-shadow: #34d399; --shell-light: #a7f3d0; }
+        body.theme-purple { --bg-canvas: #f3e8ff; --shell-color: #d8b4fe; --shell-shadow: #c084fc; --shell-light: #e9d5ff; }
+        body.theme-lemon { --bg-canvas: #fffde7; --shell-color: #fff176; --shell-shadow: #fbc02d; --shell-light: #fff9c4; }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            background-color: var(--bg-canvas);
+            background-image: radial-gradient(rgba(255, 255, 255, 0.7) 3px, transparent 3px);
+            background-size: 35px 35px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; overflow-x: hidden;
+            font-family: var(--font-main);
+            transition: background-color 0.4s ease;
+            cursor: crosshair;
+        }
+
+        /* ✨ 반짝이 */
+        .mouse-sparkle {
+            position: fixed; pointer-events: none; z-index: 9999;
+            width: 6px; height: 6px; background-color: white; border-radius: 50%;
+            box-shadow: 0 0 10px 4px rgba(255, 255, 255, 0.9);
+            animation: sparkleFade 0.7s ease-out forwards;
+        }
+        @keyframes sparkleFade {
+            0% { transform: scale(0.3) translateY(0); opacity: 1; }
+            100% { transform: scale(1.8) translateY(25px); opacity: 0; }
+        }
+
+        /* 🛠 상단 메뉴 UI */
+        .ui-panel {
+            position: fixed; top: 20px; z-index: 1000;
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px);
+            padding: 10px 20px; border-radius: 50px;
+            border: 2px solid white; box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+
+        .palette { display: flex; gap: 8px; align-items: center; }
+        .color-swatch {
+            width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+            border: 2px solid white; transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .color-swatch:hover { transform: scale(1.3); }
+        .divider { width: 1px; height: 20px; background-color: rgba(0,0,0,0.1); }
+
+        .save-btn {
+            background: white; color: var(--shell-shadow); border: none;
+            font-family: var(--font-main); font-weight: 700; font-size: 1.1rem;
+            padding: 6px 18px; border-radius: 20px; 
+            cursor: pointer; transition: transform 0.1s; outline: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            letter-spacing: 1px;
+        }
+        .save-btn:active { transform: translateY(3px); }
+
+        /* 🌟 3D 래퍼 */
+        .perspective-wrapper { perspective: 1500px; z-index: 10; }
+
+        /* 📸 포토카드 캡처 영역 */
+        #capture-wrapper {
+            padding: 50px 60px 80px 60px;
+            background-color: var(--bg-canvas);
+            background-image: radial-gradient(rgba(255, 255, 255, 0.8) 3px, transparent 3px);
+            background-size: 35px 35px;
+            border-radius: 30px;
+            display: inline-flex; justify-content: center; align-items: center;
+        }
+
+        /* 🍓 다마고치 본체 */
+        .toy-shell {
+            width: 340px; height: 460px;
+            background: var(--shell-color);
+            border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
+            box-shadow: 
+                inset 15px 15px 25px var(--shell-light),
+                inset -10px -15px 20px var(--shell-shadow),
+                0 35px 50px rgba(0,0,0,0.2);
+            border: 5px solid white;
+            display: flex; flex-direction: column; align-items: center;
+            padding-top: 45px; position: relative; z-index: 10; 
+            transition: transform 0.1s ease-out; 
+            will-change: transform;
+        }
+
+        .keychain {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            width: 30px; height: 45px; border: 6px solid white; border-radius: 15px;
+            z-index: -1; background: transparent;
+        }
+
+        .brand-logo {
+            color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: 2px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.15); margin-bottom: 20px;
+        }
+
+        .screen-bezel {
+            width: 250px; height: 250px; background-color: var(--bezel-color);
+            border-radius: 25px; border: 4px solid rgba(0,0,0,0.03);
+            padding: 12px; position: relative; box-shadow: inset 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 실제 LCD 화면 */
+        .lcd-screen {
+            width: 100%; height: 100%; background-color: var(--lcd-bg);
+            border: 3px solid var(--lcd-border); border-radius: 10px;
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
+            color: var(--pixel-color); font-family: var(--font-main);
+            box-shadow: inset 2px 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .lcd-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 3px 3px; pointer-events: none; z-index: 50;
+        }
+
+        /* 통통 튀는 애니메이션 */
+        .pop-anim { animation: pop 0.2s ease-out; }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); color: #fff; }
+            100% { transform: scale(1); }
+        }
+
+        .lcd-top-bar, .lcd-bottom-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 10px; z-index: 60; background: var(--lcd-bg);
+            font-size: 19px; /* 폰트 크기 확대 */
+            line-height: 1.1;
+        }
+        .lcd-top-bar { border-bottom: 2px dashed var(--lcd-border); }
+        .lcd-bottom-bar { border-top: 2px dashed var(--lcd-border); }
+        
+        .name-input {
+            background: transparent; border: none; outline: none; color: var(--pixel-color); 
+            font-family: var(--font-main); font-size: 19px; /* 글씨 크기 확대 */
+            width: 85px; /* 글자 크기 커짐에 따라 너비 확대 */
+            text-transform: uppercase; line-height: 1.1; padding: 0;
+        }
+        .stat-clicker { 
+            cursor: pointer; transition: transform 0.1s; letter-spacing: 4px; 
+            font-size: 16px; /* 레트로 텍스트 이모티콘 크기 확대 */
+        }
+
+        /* 🖼️ 이미지 슬롯 */
+        .character-slot {
+            flex-grow: 1; position: relative; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            background-color: var(--lcd-bg); cursor: grab; z-index: 1;
+        }
+
+        /* 레트로 감성 이미지 필터 유지 */
+        .character-slot img {
+            position: absolute; 
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(1.0);
+            width: 100%; height: 100%;
+            object-fit: cover; 
+            display: none; z-index: 5; image-rendering: pixelated; 
+            transform-origin: center center;
+            -webkit-user-drag: none; pointer-events: none;
+            filter: grayscale(100%) contrast(1.2) sepia(100%) hue-rotate(50deg) saturate(2) brightness(0.9);
+            mix-blend-mode: multiply;
+        }
+
+        .file-input-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; cursor: pointer; z-index: 100;
+        }
+
+        .upload-trigger {
+            font-size: 22px; /* 업로드 텍스트 크기 확대 */
+            color: var(--pixel-color); 
+            animation: blink 1.2s infinite steps(2);
+            pointer-events: none; text-align: center; line-height: 1.4; z-index: 20;
+            letter-spacing: 1px;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .hardware-buttons {
+            display: flex; justify-content: space-between; width: 160px; margin-top: 40px; 
+        }
+        .btn {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: white; border: none; cursor: pointer;
+            box-shadow: inset -2px -4px 6px rgba(0,0,0,0.15), 0 5px 8px rgba(0,0,0,0.15);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn:active { transform: translateY(5px); box-shadow: inset -2px -4px 6px rgba(0,0,0,0.15); }
+
+    </style>
+</head>
+<body class="theme-default">
+
+    <div class="ui-panel" data-html2canvas-ignore="true">
+        <div class="palette">
+            <div class="color-swatch" style="background: #ff8fab;" onclick="setTheme('')" title="Peach"></div>
+            <div class="color-swatch" style="background: #ffffff; border:1px solid #ddd" onclick="setTheme('theme-white')" title="White"></div>
+            <div class="color-swatch" style="background: #1a1a1a;" onclick="setTheme('theme-black')" title="Black"></div>
+            <div class="color-swatch" style="background: #d8b4fe;" onclick="setTheme('theme-purple')" title="Purple"></div>
+            <div class="color-swatch" style="background: #7dd3fc;" onclick="setTheme('theme-blue')" title="Blue"></div>
+            <div class="color-swatch" style="background: #6ee7b7;" onclick="setTheme('theme-mint')" title="Mint"></div>
+            <div class="color-swatch" style="background: #fff176;" onclick="setTheme('theme-lemon')" title="Lemon"></div>
+        </div>
+        <div class="divider"></div>
+        <button class="save-btn" onclick="saveImage()">✨ SAVE</button>
+    </div>
+
+    <div class="perspective-wrapper">
+        <div id="capture-wrapper">
+            <div class="toy-shell" id="tamagotchi-shell">
+                <div class="keychain"></div>
+                <div class="brand-logo">Tamagotchi</div>
+                <div class="screen-bezel">
+                    <div class="lcd-screen">
+                        <div class="lcd-overlay" id="scanline"></div>
+                        <div class="lcd-top-bar">
+                            <input type="text" class="name-input" value="MY CHAR" spellcheck="false" maxlength="8">
+                            <span class="stat-clicker" id="days-text" onclick="cycleDays(this)">DAYS:01</span>
+                        </div>
+                        <div class="character-slot" id="drag-slot">
+                            <input type="file" id="main-file" class="file-input-overlay" accept="image/*" onchange="handleUpload(event)">
+                            <div class="upload-trigger" id="trigger">TAP TO<br>HATCH!</div>
+                            <img id="char-img" src="" draggable="false">
+                        </div>
+                        <div class="lcd-bottom-bar">
+                            <div class="stat-clicker" id="heart-stat" onclick="cycleStat(this, '♥', '♡')">♥♥♡♡</div>
+                            <div class="stat-clicker" id="star-stat" onclick="cycleStat(this, '★', '☆')">★★☆☆</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hardware-buttons">
+                    <button class="btn" onclick="document.getElementById('main-file').click();"></button>
+                    <button class="btn" onclick="triggerPop(document.getElementById('heart-stat')); cycleStat(document.getElementById('heart-stat'), '♥', '♡')"></button>
+                    <button class="btn" onclick="triggerPop(document.getElementById('star-stat')); cycleStat(document.getElementById('star-stat'), '★', '☆')"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isTyping = false;
+        let isDraggingImage = false;
+        let imgTx = 0, imgTy = 0, imgScale = 1.0; 
+
+        // ✨ 반짝이 트레일
+        document.addEventListener('mousemove', function(e) {
+            if (isDraggingImage || isTyping) return;
+            if (Math.random() > 0.4) return;
+            
+            const sparkle = document.createElement('div');
+            sparkle.className = 'mouse-sparkle';
+            sparkle.style.left = e.clientX + 'px';
+            sparkle.style.top = e.clientY + 'px';
+            document.body.appendChild(sparkle);
+            
+            setTimeout(() => sparkle.remove(), 700);
+        });
+
+        // 🌟 3D 틸트
+        document.addEventListener("mousemove", e => {
+            const shell = document.getElementById("tamagotchi-shell");
+            if (!shell || isTyping || isDraggingImage) return; 
+            
+            const xAxis = (window.innerWidth / 2 - e.clientX) / 35; 
+            const yAxis = (window.innerHeight / 2 - e.clientY) / 35;
+            shell.style.transform = `rotateX(${yAxis}deg) rotateY(${xAxis}deg)`;
+        });
+
+        document.addEventListener("mouseleave", () => {
+            const shell = document.getElementById("tamagotchi-shell");
+            if(shell) shell.style.transform = `rotateX(0deg) rotateY(0deg)`;
+        });
+
+        const textBox = document.querySelector('.name-input');
+        textBox.addEventListener('focus', () => { isTyping = true; document.getElementById("tamagotchi-shell").style.transform = 'none'; });
+        textBox.addEventListener('blur', () => { isTyping = false; });
+
+        function setTheme(c) { document.body.className = c; }
+        
+        function triggerPop(element) {
+            element.classList.remove('pop-anim');
+            void element.offsetWidth;
+            element.classList.add('pop-anim');
+        }
+
+        function cycleStat(e, f, m) {
+            let s = e.innerText;
+            let c = (s.match(new RegExp("\\" + f, "g")) || []).length;
+            e.innerText = f.repeat((c + 1) % 5) + m.repeat(4 - ((c + 1) % 5));
+            triggerPop(e);
+        }
+        
+        function cycleDays(e) {
+            let d = parseInt(e.innerText.split(':')[1]);
+            e.innerText = `DAYS:${((d + 1) % 100).toString().padStart(2, '0')}`;
+            triggerPop(e);
+        }
+
+        function applyTransform() {
+            const img = document.getElementById('char-img');
+            if(img) img.style.transform = `translate(calc(-50% + ${imgTx}px), calc(-50% + ${imgTy}px)) scale(${imgScale})`;
+        }
+
+        // 📸 순정 이미지 업로드
+        window.handleUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('char-img');
+                img.src = e.target.result;
+                img.style.display = 'block'; 
+                
+                document.getElementById('trigger').style.display = 'none'; 
+                document.querySelector('.file-input-overlay').style.pointerEvents = 'none';
+                
+                imgTx = 0; imgTy = 0; imgScale = 1.0;
+                applyTransform();
+            };
+            reader.readAsDataURL(file);
+            event.target.value = ''; 
+        };
+
+        // ✋ 드래그 & 줌
+        const dragSlot = document.getElementById('drag-slot');
+        let startX, startY, initTx, initTy;
+
+        dragSlot.addEventListener('wheel', e => {
+            const img = document.getElementById('char-img');
+            if(img.style.display === 'none') return;
+            e.preventDefault(); 
+            imgScale += e.deltaY * -0.0015; 
+            imgScale = Math.max(0.1, Math.min(6, imgScale));
+            applyTransform();
+        });
+
+        dragSlot.addEventListener('mousedown', e => {
+            const img = document.getElementById('char-img');
+            if(img.style.display === 'none') return;
+            e.preventDefault(); 
+            isDraggingImage = true; 
+            
+            const shell = document.getElementById("tamagotchi-shell");
+            shell.style.transform = 'none'; 
+            
+            startX = e.clientX; startY = e.clientY;
+            initTx = imgTx; initTy = imgTy;
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!isDraggingImage) return;
+            imgTx = initTx + (e.clientX - startX);
+            imgTy = initTy + (e.clientY - startY);
+            applyTransform();
+        });
+        
+        document.addEventListener('mouseup', () => isDraggingImage = false);
+
+        // 💾 클론 캡처 로직 (폰트 & 위치 깨짐 완벽 방지 + 잘림 현상 해결)
+        window.saveImage = async function () {
+            const btn = document.querySelector('.save-btn');
+            const targetWrapper = document.getElementById('capture-wrapper');
+
+            document.querySelectorAll('.name-input').forEach(i => i.blur()); 
+            btn.innerText = "SAVING..."; btn.style.pointerEvents = "none";
+            document.querySelectorAll('.mouse-sparkle').forEach(el => el.remove());
+
+            // 👉 추가된 부분: 원본 요소의 정확한 크기 측정
+            const rect = targetWrapper.getBoundingClientRect();
+
+            const clone = targetWrapper.cloneNode(true);
+            
+            // 👉 수정된 부분: -9999px 대신 화면 뒤로 숨기고, 명시적 크기 부여
+            clone.style.position = "absolute";
+            clone.style.left = "0";
+            clone.style.top = "0";
+            clone.style.zIndex = "-9999"; 
+            clone.style.margin = "0";
+            clone.style.width = rect.width + "px";
+            clone.style.height = rect.height + "px";
+
+            // 🔥 input 요소의 CSS 속성을 span으로 완벽 복사 (새 폰트도 안전하게 저장!)
+            const origInput = document.querySelector('.name-input');
+            const cloneInput = clone.querySelector('.name-input');
+            if (cloneInput && origInput) {
+                const span = document.createElement('span');
+                const compStyle = getComputedStyle(origInput);
+                span.innerText = origInput.value;
+                span.style.fontFamily = compStyle.fontFamily;
+                span.style.fontWeight = compStyle.fontWeight;
+                span.style.fontSize = compStyle.fontSize;
+                span.style.color = compStyle.color;
+                span.style.lineHeight = compStyle.lineHeight;
+                span.style.display = 'inline-block';
+                span.style.width = compStyle.width;
+                span.style.textAlign = 'left';
+                span.style.textTransform = 'uppercase';
+                span.style.padding = compStyle.padding;
+                cloneInput.parentNode.replaceChild(span, cloneInput);
+            }
+
+            const cloneShell = clone.querySelector('#tamagotchi-shell');
+            if (cloneShell) {
+                cloneShell.style.transform = "none";
+                cloneShell.style.transition = "none";
+            }
+            
+            document.body.appendChild(clone);
+
+            try {
+                const imgCheck = document.getElementById('char-img');
+                if (imgCheck && imgCheck.src && !imgCheck.complete) {
+                    await new Promise(r => imgCheck.onload = r);
+                }
+                
+                await document.fonts.ready;
+                await new Promise(r => setTimeout(r, 200));
+
+                // 👉 수정된 부분: domtoimage 옵션에 명시적 너비/높이 강제 지정
+                const dataUrl = await domtoimage.toPng(clone, {
+                    quality: 1.0,
+                    bgcolor: null,
+                    width: rect.width,
+                    height: rect.height,
+                    style: {
+                        transform: 'none'
+                    }
+                });
+
+                const link = document.createElement('a');
+                link.download = `Tamagotchi_${Date.now()}.png`;
+                link.href = dataUrl;
+                link.click();
+
+            } catch (err) {
+                console.error(err);
+                alert("저장 실패 😭");
+            } finally {
+                if (document.body.contains(clone)) {
+                    document.body.removeChild(clone);
+                }
+                btn.innerText = "✨ SAVE"; 
+                btn.style.pointerEvents = "auto";
+            }
+        };
+    </script>
+</body>
+</html>
